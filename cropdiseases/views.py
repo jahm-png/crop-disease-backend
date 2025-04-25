@@ -6,12 +6,8 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.response import Response
 from .models import Disease
 from .serializers import DiseaseSerializer
-from .model_loader import load_model
 
-# Load the ML model once at startup
-model = load_model()
-
-# Optional: Add treatment suggestions per disease (can be expanded)
+# Optional: Add treatment suggestions per disease
 TREATMENT_DICT = {
     "Pepper__bell___Bacterial_spot": "Use copper-based bactericides and avoid overhead watering.",
     "Pepper__bell___healthy": "No treatment needed. Your crop is healthy.",
@@ -35,7 +31,7 @@ TREATMENT_DICT = {
 def get_weather(request):
     city = request.GET.get('city', 'Nairobi')
     try:
-        api_key = '3d508b4e5dbb45330a53e393e26cfc2d'  # ✅ Replace with your OpenWeather API key
+        api_key = '3d508b4e5dbb45330a53e393e26cfc2d'
         url = f'https://api.openweathermap.org/data/2.5/weather?q={city}&appid={api_key}&units=metric'
         response = requests.get(url)
         data = response.json()
@@ -110,7 +106,7 @@ class AddDisease(APIView):
             }, status=201)
         return Response(serializer.errors, status=400)
 
-# ---------- Image-Based Diagnosis ---------- #
+# ---------- Image-Based Diagnosis (Lazy Model Load) ---------- #
 class ImageDiagnosisView(APIView):
     parser_classes = [MultiPartParser, FormParser]
 
@@ -119,6 +115,9 @@ class ImageDiagnosisView(APIView):
             return Response({'error': 'No image uploaded'}, status=400)
 
         try:
+            from .model_loader import load_model  # Load only when needed
+            model = load_model()
+
             image = Image.open(request.FILES['image']).convert('RGB')
             disease, confidence = model.predict(image)
 
